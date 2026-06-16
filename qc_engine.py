@@ -2,14 +2,15 @@ import json
 import re
 from typing import Any, Dict, Iterable, List, Optional
 
-import openai
+from openai import OpenAI
 
 from config import AZURE_OPENAI_API_BASE, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION
 
-openai.api_type = "azure"
-openai.api_key = AZURE_OPENAI_API_KEY
-openai.api_base = AZURE_OPENAI_API_BASE
-openai.api_version = AZURE_OPENAI_API_VERSION
+client = OpenAI(
+    api_key=AZURE_OPENAI_API_KEY,
+    azure_endpoint=AZURE_OPENAI_API_BASE,
+    api_version=AZURE_OPENAI_API_VERSION,
+)
 
 
 Difficulty_level_json = {
@@ -32,13 +33,12 @@ Difficulty_level_json = {
 
 
 def get_completion_0temp(prompt, engine="gpt-4o-aispeaking"):
-    messages = [{"role": "user", "content": prompt}]
-    response = openai.ChatCompletion.create(
-        engine=engine,
-        messages=messages,
+    response = client.chat.completions.create(
+        model=engine,
+        messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
     )
-    content = response.choices[0].message["content"]
+    content = response.choices[0].message.content
     if content.startswith("```json") and content.endswith("```"):
         content = content[7:-3].strip()
     return content
