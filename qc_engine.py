@@ -2,14 +2,14 @@ import json
 import re
 from typing import Any, Dict, Iterable, List, Optional
 
-from openai import OpenAI
+from openai import AzureOpenAI
 
 from config import AZURE_OPENAI_API_BASE, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION
 
-client = OpenAI(
+client = AzureOpenAI(
     api_key=AZURE_OPENAI_API_KEY,
-    azure_endpoint=AZURE_OPENAI_API_BASE,
     api_version=AZURE_OPENAI_API_VERSION,
+    azure_endpoint=AZURE_OPENAI_API_BASE,
 )
 
 
