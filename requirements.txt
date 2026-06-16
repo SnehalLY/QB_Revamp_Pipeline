@@ -1,7 +1,7 @@
 streamlit
 pandas
 sqlalchemy
-pyodbc
+pymssql
 python-docx
 openai
 python-dotenv
