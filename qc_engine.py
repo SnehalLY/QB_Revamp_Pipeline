@@ -9,7 +9,7 @@ from config import AZURE_OPENAI_API_BASE, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API
 client = AzureOpenAI(
     api_key=AZURE_OPENAI_API_KEY,
     api_version=AZURE_OPENAI_API_VERSION,
-    azure_endpoint=AZURE_OPENAI_API_BASE,
+    azure_endpoint=AZURE_OPENAI_API_BASE.rstrip("/") + "/",
 )
 
 
