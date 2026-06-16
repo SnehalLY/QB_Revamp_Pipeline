@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.docx
+*.doc
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/

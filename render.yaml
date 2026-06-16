@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: qb-revamp-pipeline
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run review_app.py --server.port=$PORT --server.address=0.0.0.0
+    envVars:
+      - key: AZURE_DB_SERVER
+        sync: false
+      - key: AZURE_DB_PORT
+        sync: false
+      - key: AZURE_DB_NAME
+        sync: false
+      - key: AZURE_DB_USER
+        sync: false
+      - key: AZURE_DB_PASSWORD
+        sync: false
+      - key: AZURE_OPENAI_API_KEY
+        sync: false
+      - key: AZURE_OPENAI_API_BASE
+        sync: false
+      - key: AZURE_OPENAI_API_VERSION
+        sync: false

@@ -1,0 +1,28 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DB_SERVER = os.getenv("AZURE_DB_SERVER")
+DB_PORT = os.getenv("AZURE_DB_PORT", "1433")
+DB_NAME = os.getenv("AZURE_DB_NAME")
+DB_USER = os.getenv("AZURE_DB_USER")
+DB_PASSWORD = os.getenv("AZURE_DB_PASSWORD")
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_API_BASE = os.getenv("AZURE_OPENAI_API_BASE")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
+
+DB_CONNECTION_STRING = (
+    f"mssql+pyodbc://{DB_USER}:{DB_PASSWORD}@{DB_SERVER}:{DB_PORT}/{DB_NAME}"
+    f"?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no"
+)
+
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_API_BASE = os.getenv("AZURE_OPENAI_API_BASE")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
+
+TARGET_QB_ID = 366033
+
+RTU_CUSTOMER_ID = 310
+
+LOGICBOX_QB_IDENTIFIERS = ["logicbox", "LogicBox", "Logic Box", "logic box", "LB_", "_LB"]
