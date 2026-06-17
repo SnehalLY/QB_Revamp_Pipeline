@@ -6,6 +6,18 @@ from openai import AzureOpenAI
 
 from config import AZURE_OPENAI_API_BASE, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION
 
+missing_azure_openai_env = [
+    name
+    for name, value in {
+        "AZURE_OPENAI_API_KEY": AZURE_OPENAI_API_KEY,
+        "AZURE_OPENAI_API_BASE": AZURE_OPENAI_API_BASE,
+        "AZURE_OPENAI_API_VERSION": AZURE_OPENAI_API_VERSION,
+    }.items()
+    if not value
+]
+if missing_azure_openai_env:
+    raise RuntimeError(f"Missing required environment variable(s): {', '.join(missing_azure_openai_env)}")
+
 client = AzureOpenAI(
     api_key=AZURE_OPENAI_API_KEY,
     api_version=AZURE_OPENAI_API_VERSION,

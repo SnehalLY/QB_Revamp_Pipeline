@@ -1,10 +1,13 @@
 services:
   - type: web
     name: qb-revamp-pipeline
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run review_app.py --server.port=$PORT --server.address=0.0.0.0
+    runtime: python
+    buildCommand: python -m pip install --upgrade pip && pip install --upgrade --no-cache-dir -r requirements.txt
+    startCommand: streamlit run review_app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+    healthCheckPath: /
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.13"
       - key: AZURE_DB_SERVER
         sync: false
       - key: AZURE_DB_PORT

@@ -1,10 +1,13 @@
-from sqlalchemy import bindparam, create_engine, text
+from functools import lru_cache
+
 import pandas as pd
+from sqlalchemy import bindparam, create_engine, text
 from config import DB_CONNECTION_STRING, TARGET_QB_ID, RTU_CUSTOMER_ID
 
 
+@lru_cache(maxsize=1)
 def get_engine():
-    return create_engine(DB_CONNECTION_STRING)
+    return create_engine(DB_CONNECTION_STRING, pool_pre_ping=True)
 
 
 def fetch_qb_list(search="", limit=50):
@@ -83,6 +86,23 @@ def fetch_questions_for_qb(qb_id):
     """)
 
     df = pd.read_sql(query, engine, params={"qb_id": qb_id, "rtu_customer_id": RTU_CUSTOMER_ID})
+    if df.empty:
+        return df
+
+    answers_query = text("""
+        SELECT AnsId, QueId, Answer, IsCorrect, Points, AnswerIntent, Status
+        FROM QuestionMaster_Answer
+        WHERE QueId IN :que_ids
+        ORDER BY QueId, AnsId
+    """).bindparams(bindparam("que_ids", expanding=True))
+
+    question_ids = [int(qid) for qid in df["QueId"].tolist() if pd.notna(qid)]
+    answers_df = pd.read_sql(answers_query, engine, params={"que_ids": question_ids})
+    answers_by_que_id = {qid: [] for qid in question_ids}
+    for _, answer_row in answers_df.iterrows():
+        answers_by_que_id.setdefault(int(answer_row["QueId"]), []).append(answer_row.to_dict())
+
+    df["Answers"] = df["QueId"].map(lambda qid: answers_by_que_id.get(int(qid), []))
     return df
 
 

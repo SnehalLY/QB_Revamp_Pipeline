@@ -1,6 +1,9 @@
 import json
+import os
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from functools import lru_cache
 from sqlalchemy import bindparam, create_engine, text
 from config import DB_CONNECTION_STRING
 import pandas as pd
@@ -9,8 +12,9 @@ app = Flask(__name__)
 CORS(app)
 
 
+@lru_cache(maxsize=1)
 def get_engine():
-    return create_engine(DB_CONNECTION_STRING)
+    return create_engine(DB_CONNECTION_STRING, pool_pre_ping=True)
 
 
 def fetch_qb_list(search="", limit=50):
@@ -165,4 +169,4 @@ def api_health():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=False)

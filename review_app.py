@@ -345,11 +345,15 @@ def extract_scenario_suggestion(suggested):
 
 
 def serialize_progress(progress_data):
+    if not isinstance(progress_data, dict):
+        return "{}"
     try:
         return json.dumps(progress_data)
     except (TypeError, ValueError):
         serializable = {}
         for que_id, entry in progress_data.items():
+            if not isinstance(entry, dict):
+                continue
             try:
                 json.dumps(entry)
                 serializable[que_id] = entry
@@ -362,16 +366,20 @@ def serialize_progress(progress_data):
         return json.dumps(serializable)
 
 
+def get_progress_file_name(qb_id, qb_name):
+    raw_name = str(qb_name or f"qb_{qb_id}").strip()
+    safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", raw_name).strip("_") or f"qb_{qb_id}"
+    return f"progress_{qb_id}_{safe_name}.json"
+
+
 def save_progress(qb_id, qb_name, progress_data):
-    name_part = str(qb_name).strip() if qb_name else str(qb_id)
-    file_path = Path(f"progress_{name_part}.json")
+    file_path = Path(get_progress_file_name(qb_id, qb_name))
     payload = serialize_progress(progress_data)
     file_path.write_text(payload, encoding="utf-8")
 
 
 def load_progress(qb_id, qb_name):
-    name_part = str(qb_name).strip() if qb_name else str(qb_id)
-    file_path = Path(f"progress_{name_part}.json")
+    file_path = Path(get_progress_file_name(qb_id, qb_name))
     if not file_path.exists():
         return None
     try:
@@ -614,7 +622,7 @@ else:
     df = st.session_state.get("current_df")
     question_row = None
     if df is not None:
-        matches = df[df["QueId"] == int(que_id)]
+        matches = df[pd.to_numeric(df["QueId"], errors="coerce") == int(que_id)]
         if not matches.empty:
             question_row = matches.iloc[0].to_dict()
 
@@ -798,7 +806,7 @@ with st.sidebar:
 
     current_df = st.session_state.get("current_df")
     if current_df is not None and not current_df.empty:
-        qids = [int(row["QueId"]) for _, row in current_df.iterrows()]
+        qids = [int(row["QueId"]) for _, row in current_df.iterrows() if pd.notna(row.get("QueId"))]
         reviewed = st.session_state.get("reviewed_questions", {})
         if "_reviewed_qid_checkboxes" not in st.session_state:
             st.session_state["_reviewed_qid_checkboxes"] = {str(qid): str(qid) in reviewed for qid in qids}
