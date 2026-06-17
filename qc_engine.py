@@ -109,6 +109,10 @@ def normalize_qc_payload(payload):
     return normalized
 
 
+def _is_fail_result(result):
+    return str(result.get("qc_result", "")).strip().lower() != "pass"
+
+
 def filter_unique_answers(answers: Iterable[Any]) -> List[Any]:
     unique_answers = []
     seen = set()
@@ -269,6 +273,61 @@ Return JSON in this format:
     return normalized
 
 
+def revamp_scenario_when_missing(topic, subtopic, difficulty, scenario, instructions, code_snippet, answers, reasons=None):
+    reason_text = "\n".join(f"- {reason}" for reason in reasons or []) or "Improve clarity, relevance, and alignment with the topic and difficulty."
+    prompt = f"""
+Rewrite this coding assessment scenario as a plain scenario only.
+
+Rules:
+- Return only the rewritten scenario text.
+- Do not return JSON, markdown, headings, HTML, CSS, instructions, code, or explanations.
+- Start with "You are working on...".
+- Keep it realistic, concise, and aligned to the topic, subtopic, difficulty, code snippet, and answers.
+- Remove business/role-based phrasing and unrelated content.
+
+Topic: {topic}
+Subtopic: {subtopic}
+Difficulty: {difficulty}
+Current scenario:\n{scenario}
+Instructions:\n{instructions}
+Code snippet:\n{code_snippet}
+Answers:\n{_safe_answers_text(answers)}
+QC reasons:\n{reason_text}
+
+Rewritten scenario:
+""".strip()
+    revamped = get_completion_0temp(prompt).strip()
+    if revamped.startswith('"') and revamped.endswith('"'):
+        revamped = revamped[1:-1]
+    return revamped or None
+
+
+def revamp_instructions_when_missing(difficulty, instructions, code_snippet, answers, reasons=None):
+    reason_text = "\n".join(f"- {reason}" for reason in reasons or []) or "Improve clarity without revealing the answer."
+    prompt = f"""
+Rewrite these coding assessment instructions as conceptual guidance only.
+
+Rules:
+- Return only the rewritten instructions text.
+- Do not return JSON, markdown, headings, code, or explanations.
+- Do not directly reveal the answer.
+- Refer to the blanks and sample script clearly.
+- Match the difficulty level.
+
+Difficulty: {difficulty}
+Current instructions:\n{instructions}
+Code snippet:\n{code_snippet}
+Answers:\n{_safe_answers_text(answers)}
+QC reasons:\n{reason_text}
+
+Rewritten instructions:
+""".strip()
+    revamped = get_completion_0temp(prompt).strip()
+    if revamped.startswith('"') and revamped.endswith('"'):
+        revamped = revamped[1:-1]
+    return revamped or None
+
+
 def generate_alternate_answers(topic, sub_topic, difficulty, code_snippet, instructions, answers):
     """
     Generate alternate valid answers for each blank while preserving equivalent logic.
@@ -356,6 +415,14 @@ def qc_and_revamp_chain(topic, sub_topic, difficulty, code_snippet, instructions
         difficulty=difficulty,
     )
     instructions_result = normalize_qc_payload(extract_json(instructions_result_raw) or {"qc_result": "fail", "reasons": ["Unable to parse instructions QC response."], "raw_response": instructions_result_raw})
+    if _is_fail_result(instructions_result) and not instructions_result.get("revamped_instructions"):
+        instructions_result["revamped_instructions"] = revamp_instructions_when_missing(
+            difficulty=difficulty,
+            instructions=instructions,
+            code_snippet=code_snippet,
+            answers=answers,
+            reasons=instructions_result.get("reasons", []),
+        )
 
     scenario_result_raw = qc_and_revamp_scenario(
         topic=topic,
@@ -367,6 +434,17 @@ def qc_and_revamp_chain(topic, sub_topic, difficulty, code_snippet, instructions
         answers=answers,
     )
     scenario_result = normalize_qc_payload(scenario_result_raw if isinstance(scenario_result_raw, dict) else extract_json(scenario_result_raw) or {"qc_result": "fail", "reasons": ["Unable to parse scenario QC response."], "raw_response": scenario_result_raw})
+    if _is_fail_result(scenario_result) and not scenario_result.get("revamped_scenario"):
+        scenario_result["revamped_scenario"] = revamp_scenario_when_missing(
+            topic=topic,
+            subtopic=sub_topic,
+            difficulty=difficulty,
+            scenario=scenario,
+            instructions=instructions,
+            code_snippet=code_snippet,
+            answers=answers,
+            reasons=scenario_result.get("reasons", []),
+        )
 
     alternate_answers = generate_alternate_answers(
         topic=topic,
@@ -378,7 +456,7 @@ def qc_and_revamp_chain(topic, sub_topic, difficulty, code_snippet, instructions
     )
 
     overall_result = "pass"
-    if any(str(result.get("qc_result", "")).strip().lower() != "pass" for result in [code_snippet_result, instructions_result, scenario_result]):
+    if any(_is_fail_result(result) for result in [code_snippet_result, instructions_result, scenario_result]):
         overall_result = "fail"
 
     combined_result = {

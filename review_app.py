@@ -648,9 +648,11 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
+        scenario_qc = qc.get("scenario_qc", {}) if isinstance(qc.get("scenario_qc", {}), dict) else {}
+        instructions_qc = qc.get("instructions_qc", {}) if isinstance(qc.get("instructions_qc", {}), dict) else {}
         sections = [
-            ("scenario", "Scenario", mapped.get("scenario", ""), qc.get("scenario_qc", {}).get("revamped_scenario"), qc.get("scenario_qc", {})),
-            ("instructions", "Instructions", mapped.get("instructions", ""), qc.get("revamped_instructions"), qc.get("instructions_qc", {})),
+            ("scenario", "Scenario", mapped.get("scenario", ""), qc.get("revamped_scenario") or scenario_qc.get("revamped_scenario"), scenario_qc),
+            ("instructions", "Instructions", mapped.get("instructions", ""), qc.get("revamped_instructions") or instructions_qc.get("revamped_instructions"), instructions_qc),
             ("code_snippet", "Code Snippet / Sample Script", mapped.get("code_snippet", ""), qc.get("revamped_code_snippet"), qc.get("code_snippet_qc", {})),
         ]
 
@@ -765,7 +767,13 @@ with st.sidebar:
             save_progress(qb_id, qb_name, reviewed)
             st.success("Progress saved!")
 
-    reviewed_que_ids = sorted([str(qid) for qid in reviewed.keys()], key=lambda x: int(x))
+    reviewed_que_ids = []
+    for qid in reviewed.keys():
+        try:
+            reviewed_que_ids.append(str(int(qid)))
+        except (TypeError, ValueError):
+            continue
+    reviewed_que_ids = sorted(reviewed_que_ids, key=lambda x: int(x))
     disabled = len(reviewed_que_ids) == 0
     if st.button("Generate Complete Document", disabled=disabled, use_container_width=True, type="primary"):
         questions_data = []
@@ -808,17 +816,19 @@ with st.sidebar:
     if current_df is not None and not current_df.empty:
         qids = [int(row["QueId"]) for _, row in current_df.iterrows() if pd.notna(row.get("QueId"))]
         reviewed = st.session_state.get("reviewed_questions", {})
-        if "_reviewed_qid_checkboxes" not in st.session_state:
-            st.session_state["_reviewed_qid_checkboxes"] = {str(qid): str(qid) in reviewed for qid in qids}
-        elif set(st.session_state["_reviewed_qid_checkboxes"].keys()) != set(str(qid) for qid in qids):
-            st.session_state["_reviewed_qid_checkboxes"] = {str(qid): str(qid) in reviewed for qid in qids}
+        reviewed_keys = {str(qid) for qid in reviewed.keys()}
+        checklist_key = f"_reviewed_qid_checkboxes_{qb_id or 'default'}"
+        expected_qid_keys = {str(qid) for qid in qids}
+        if checklist_key not in st.session_state:
+            st.session_state[checklist_key] = {qid: qid in reviewed_keys for qid in expected_qid_keys}
+        elif set(st.session_state[checklist_key].keys()) != expected_qid_keys:
+            st.session_state[checklist_key] = {qid: qid in reviewed_keys for qid in expected_qid_keys}
 
-        checked_count = sum(1 for v in st.session_state["_reviewed_qid_checkboxes"].values() if v)
+        checked_count = sum(1 for qid in expected_qid_keys if qid in reviewed_keys)
 
-        reviewed = st.session_state.get("reviewed_questions", {})
-        for key in st.session_state.get("_reviewed_qid_checkboxes", {}):
-            if key in reviewed:
-                st.session_state["_reviewed_qid_checkboxes"][key] = True
+        for key in st.session_state.get(checklist_key, {}):
+            if key in reviewed_keys:
+                st.session_state[checklist_key][key] = True
         st.markdown(f"""
         <div class="progress-card">
             <div class="progress-label">Review Checklist</div>
@@ -828,11 +838,12 @@ with st.sidebar:
 
         with st.expander("View QIDs", expanded=False):
             for qid in sorted(qids, key=lambda x: int(x)):
+                qid_key = str(qid)
                 checked = st.checkbox(
                     f"Q{qid}",
-                    value=st.session_state["_reviewed_qid_checkboxes"].get(str(qid), False),
-                    key=f"qid_check_{qid}",
+                    value=st.session_state[checklist_key].get(qid_key, False),
+                    key=f"qid_check_{qb_id or 'default'}_{qid}",
                 )
-                st.session_state["_reviewed_qid_checkboxes"][str(qid)] = checked
+                st.session_state[checklist_key][qid_key] = checked
 
     st.divider()
